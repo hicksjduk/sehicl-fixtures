@@ -59,7 +59,7 @@ public class FixtureList
         {
             Team t1 = teamsInRound.removeFirst();
             Team t2 = teamsInRound.removeLast();
-            boolean t1AtHome = (matchesInRound.size() % 2 == 0) == reverseHa;
+            boolean t1AtHome = (matchesInRound.size() % 2 == 1) == reverseHa;
             matchesInRound.add(t1AtHome ? new Match(t1, t2) : new Match(t2, t1));
         }
         if (extra != null)

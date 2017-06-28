@@ -15,7 +15,11 @@ public class FixtureListTest
     @Test
     public void test()
     {
-        FixtureList.getInstances().forEach(this::test);
+        FixtureList.getInstances().forEach(fl ->
+        {
+            test(fl);
+            System.out.println(fl);
+        });
     }
 
     private void test(FixtureList fl)
