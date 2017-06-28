@@ -2,15 +2,14 @@ package uk.org.sehicl.fixtures;
 
 import static org.assertj.core.api.Assertions.*;
 
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 import org.junit.Test;
+
+import uk.org.sehicl.fixtures.FixtureList.LeagueFixtureList;
 
 public class FixtureListTest
 {
@@ -18,19 +17,19 @@ public class FixtureListTest
     @Test
     public void test()
     {
-        FixtureList.getInstances().forEach(fl ->
+        new FixtureList().getLeagueLists().forEach(fl ->
         {
             test(fl);
             System.out.println(fl);
         });
     }
 
-    private void test(FixtureList fl)
+    private void test(LeagueFixtureList fl)
     {
         fl.getTeams().forEach(t -> test(t, fl));
     }
 
-    private void test(Team t, FixtureList fl)
+    private void test(Team t, LeagueFixtureList fl)
     {
         List<Match> fixtures = fl
                 .getFixtures()

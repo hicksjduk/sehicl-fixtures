@@ -1,9 +1,13 @@
 package uk.org.sehicl.fixtures;
 
 import static org.assertj.core.api.Assertions.*;
+
 import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.IntStream;
 
 import org.junit.Test;
 
@@ -12,7 +16,7 @@ import uk.org.sehicl.fixtures.FixtureSequencer.SequenceItem;
 public class FixtureSequencerTest
 {
     @Test
-    public void test()
+    public void testItems()
     {
         Map<String, AtomicInteger> countsByDivision = new HashMap<>();
         new FixtureSequencer().getItems().forEach(item -> add(countsByDivision, item));
@@ -36,6 +40,31 @@ public class FixtureSequencerTest
             {
                 count.addAndGet(item.getMatches());
             }
+        });
+    }
+
+    @Test
+    public void testGetSequencedFixtures()
+    {
+        List<List<Match>> result = new FixtureSequencer().getSequencedFixtures(new FixtureList());
+        Iterator<List<Match>> iterator = result.iterator();
+        IntStream.range(0, 13).forEach(i ->
+        {
+            assertThat(iterator.next().size()).isEqualTo(5);
+            assertThat(iterator.next().size()).isEqualTo(4);
+            assertThat(iterator.next().size()).isEqualTo(4);
+        });
+        assertThat(iterator.next().size()).isEqualTo(5);
+        assertThat(iterator.next().size()).isEqualTo(5);
+        assertThat(iterator.next().size()).isEqualTo(3);
+        assertThat(iterator.next().size()).isEqualTo(5);
+        assertThat(iterator.next().size()).isEqualTo(3);
+        assertThat(iterator.next().size()).isEqualTo(5);
+        assertThat(iterator.hasNext()).isFalse();
+        result.forEach(ml ->
+        {
+            System.out.println();
+            ml.forEach(System.out::println);
         });
     }
 }

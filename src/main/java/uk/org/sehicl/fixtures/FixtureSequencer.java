@@ -1,7 +1,14 @@
 package uk.org.sehicl.fixtures;
 
 import java.util.Arrays;
+import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+
+import uk.org.sehicl.fixtures.FixtureList.LeagueFixtureList;
 
 public class FixtureSequencer
 {
@@ -90,5 +97,27 @@ public class FixtureSequencer
     public List<SequenceItem> getItems()
     {
         return items;
+    }
+
+    public List<List<Match>> getSequencedFixtures(FixtureList fl)
+    {
+        List<List<Match>> answer = new LinkedList<>();
+        Map<String, Iterator<Match>> matchStreams = fl.getLeagueLists().stream().collect(
+                Collectors.toMap(LeagueFixtureList::getLeague, l -> l.getFixtures().iterator()));
+        getItems().forEach(item -> answer.add(getMatches(item, matchStreams)));
+        return answer;
+    }
+
+    private List<Match> getMatches(SequenceItem item, Map<String, Iterator<Match>> matchIterators)
+    {
+        List<Match> answer = new LinkedList<>();
+        IntStream.range(0, item.getMatches()).forEach(i ->
+        {
+            item.getLeagues().forEach(l ->
+            {
+                answer.add(matchIterators.get(l).next());
+            });
+        });
+        return answer;
     }
 }
