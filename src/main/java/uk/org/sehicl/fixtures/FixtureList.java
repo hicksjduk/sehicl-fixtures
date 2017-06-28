@@ -18,6 +18,20 @@ public class FixtureList
     private final String league;
     private final List<Team> teams = new ArrayList<>();
     private final List<Match> fixtures = new ArrayList<>();
+    
+    public final static FixtureList getInstance(String league)
+    {
+        FixtureList answer = null;
+        for (FixtureList fl : INSTANCES)
+        {
+            if (fl.getLeague().equals(league))
+            {
+                answer = fl;
+                break;
+            }
+        }
+        return answer;
+    }
 
     private FixtureList(String league, int teamCount, int fixtureCount)
     {
