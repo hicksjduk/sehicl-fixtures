@@ -2,10 +2,22 @@ package uk.org.sehicl.fixtures;
 
 public class Match
 {
+    private final Team homeTeam;
+    private final Team awayTeam;
 
-    public Match()
+    public Match(Team homeTeam, Team awayTeam)
     {
-        // TODO Auto-generated constructor stub
+        this.homeTeam = homeTeam;
+        this.awayTeam = awayTeam;
     }
 
+    public Team getHomeTeam()
+    {
+        return homeTeam;
+    }
+
+    public Team getAwayTeam()
+    {
+        return awayTeam;
+    }
 }
