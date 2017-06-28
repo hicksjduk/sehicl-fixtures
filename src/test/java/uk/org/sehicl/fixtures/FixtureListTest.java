@@ -1,11 +1,14 @@
 package uk.org.sehicl.fixtures;
 
 import static org.assertj.core.api.Assertions.*;
+
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 import org.junit.Test;
 
@@ -24,46 +27,36 @@ public class FixtureListTest
 
     private void test(FixtureList fl)
     {
-        Map<List<Team>, AtomicInteger> matchCountsByHomeAway = new HashMap<>();
-        fl.getFixtures().forEach(m -> add(m, matchCountsByHomeAway));
-        fl.getTeams().forEach(t1 ->
-        {
-            fl.getTeams().forEach(t2 ->
-            {
-                if (t1 != t2)
-                {
-                    int t1t2Count = matchCountsByHomeAway
-                            .getOrDefault(Arrays.asList(t1, t2), new AtomicInteger(0))
-                            .get();
-                    int t2t1Count = matchCountsByHomeAway
-                            .getOrDefault(Arrays.asList(t2, t1), new AtomicInteger(0))
-                            .get();
-                    if (fl.getTeams().size() == 6)
-                    {
-                        assertThat(t1t2Count).as("Home: %s, Away: %s", t1, t2).isEqualTo(1);
-                        assertThat(t2t1Count).as("Home: %s, Away: %s", t2, t1).isEqualTo(1);
-                    }
-                    else
-                    {
-                        assertThat(t1t2Count).isNotEqualTo(t2t1Count);
-                        assertThat(t1t2Count + t2t1Count).isEqualTo(1);
-                    }
-                }
-            });
-        });
+        fl.getTeams().forEach(t -> test(t, fl));
     }
 
-    private void add(Match m, Map<List<Team>, AtomicInteger> matchCountsByHomeAway)
+    private void test(Team t, FixtureList fl)
     {
-        List<Team> key = Arrays.asList(m.getHomeTeam(), m.getAwayTeam());
-        AtomicInteger count = matchCountsByHomeAway.get(key);
-        if (count == null)
+        List<Match> fixtures = fl
+                .getFixtures()
+                .stream()
+                .filter(m -> t == m.getHomeTeam() || t == m.getAwayTeam())
+                .collect(Collectors.toList());
+        Map<Team, Match> homeGames = new HashMap<>();
+        Map<Team, Match> awayGames = new HashMap<>();
+        int haSequence = 0;
+        Match lastMatch = null;
+        for (Match m : fixtures)
         {
-            matchCountsByHomeAway.put(key, new AtomicInteger(1));
+            boolean home = m.getHomeTeam() == t;
+            Team opponents = home ? m.getAwayTeam() : m.getHomeTeam();
+            (home ? homeGames : awayGames).put(opponents, m);
+            if (lastMatch == null
+                    || t == (home ? lastMatch.getAwayTeam() : lastMatch.getHomeTeam()))
+            {
+                haSequence = 1;
+            }
+            else
+            {
+                assertThat(haSequence++).isLessThan(2);
+            }
         }
-        else
-        {
-            count.incrementAndGet();
-        }
+        assertThat(homeGames.size() + awayGames.size()).isEqualTo(fixtures.size());
+        assertThat(homeGames.size() - awayGames.size()).isBetween(-1, 1);
     }
 }
