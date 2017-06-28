@@ -13,6 +13,7 @@ public class FixtureSet implements Iterator<List<Match>>
 {
     private final List<Match> matches;
 
+    private List<Match> currentCombination;
     private final int maxCombinations;
     private int nextCombination = 0;
 
@@ -38,9 +39,18 @@ public class FixtureSet implements Iterator<List<Match>>
     {
         if (!hasNext())
         {
-            throw new IllegalStateException();
+            throw new IllegalStateException("No next combination");
         }
-        return getCombination(nextCombination++);
+        return currentCombination = getCombination(nextCombination++);
+    }
+
+    public List<Match> current()
+    {
+        if (currentCombination == null)
+        {
+            throw new IllegalStateException("No current combination");
+        }
+        return currentCombination;
     }
 
     private List<Match> getCombination(int combination)
