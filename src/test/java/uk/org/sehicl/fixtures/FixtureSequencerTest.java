@@ -46,8 +46,8 @@ public class FixtureSequencerTest
     @Test
     public void testGetSequencedFixtures()
     {
-        List<List<Match>> result = new FixtureSequencer().getSequencedFixtures(new FixtureList());
-        Iterator<List<Match>> iterator = result.iterator();
+        List<FixtureSet> result = new FixtureSequencer().getSequencedFixtures(new FixtureList());
+        Iterator<FixtureSet> iterator = result.iterator();
         IntStream.range(0, 13).forEach(i ->
         {
             assertThat(iterator.next().size()).isEqualTo(5);
@@ -61,10 +61,6 @@ public class FixtureSequencerTest
         assertThat(iterator.next().size()).isEqualTo(3);
         assertThat(iterator.next().size()).isEqualTo(5);
         assertThat(iterator.hasNext()).isFalse();
-        result.forEach(ml ->
-        {
-            System.out.println();
-            ml.forEach(System.out::println);
-        });
+        result.forEach(System.out::println);
     }
 }

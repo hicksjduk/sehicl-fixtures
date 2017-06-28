@@ -99,16 +99,16 @@ public class FixtureSequencer
         return items;
     }
 
-    public List<List<Match>> getSequencedFixtures(FixtureList fl)
+    public List<FixtureSet> getSequencedFixtures(FixtureList fl)
     {
-        List<List<Match>> answer = new LinkedList<>();
+        List<FixtureSet> answer = new LinkedList<>();
         Map<String, Iterator<Match>> matchStreams = fl.getLeagueLists().stream().collect(
                 Collectors.toMap(LeagueFixtureList::getLeague, l -> l.getFixtures().iterator()));
         getItems().forEach(item -> answer.add(getMatches(item, matchStreams)));
         return answer;
     }
 
-    private List<Match> getMatches(SequenceItem item, Map<String, Iterator<Match>> matchIterators)
+    private FixtureSet getMatches(SequenceItem item, Map<String, Iterator<Match>> matchIterators)
     {
         List<Match> answer = new LinkedList<>();
         IntStream.range(0, item.getMatches()).forEach(i ->
@@ -118,6 +118,6 @@ public class FixtureSequencer
                 answer.add(matchIterators.get(l).next());
             });
         });
-        return answer;
+        return new FixtureSet(answer);
     }
 }
