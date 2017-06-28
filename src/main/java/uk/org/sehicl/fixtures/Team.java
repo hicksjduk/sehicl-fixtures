@@ -13,4 +13,10 @@ public class Team
     {
         return name;
     }
+
+    @Override
+    public String toString()
+    {
+        return "Team [name=" + name + "]";
+    }
 }

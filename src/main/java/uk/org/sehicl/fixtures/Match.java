@@ -20,4 +20,9 @@ public class Match
     {
         return awayTeam;
     }
+    
+    public String toString()
+    {
+        return String.format("%s v %s", homeTeam.getName(), awayTeam.getName());
+    }
 }
