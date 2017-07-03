@@ -1,6 +1,7 @@
 package uk.org.sehicl.fixtures;
 
 import static org.assertj.core.api.Assertions.*;
+
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -23,7 +24,11 @@ public class FixtureSetTest
                                 new Team("" + team.incrementAndGet())))
                         .collect(Collectors.toList()));
         Set<String> permutations = new HashSet<>();
-        fs.forEachRemaining(p -> assertThat(permutations.add(p.toString())).as(p.toString()).isTrue());
+        fs.iterator().forEachRemaining(p ->
+        {
+            final String pString = p.get().collect(Collectors.toList()).toString();
+            assertThat(permutations.add(pString)).as(pString).isTrue();
+        });
     }
 
 }

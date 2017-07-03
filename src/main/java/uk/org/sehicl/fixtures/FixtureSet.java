@@ -7,50 +7,23 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.function.Supplier;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
-public class FixtureSet implements Iterator<List<Match>>
+public class FixtureSet
 {
     private final List<Match> matches;
-
-    private List<Match> currentCombination;
+    private final List<Supplier<Stream<Match>>> suppliers;
     private final int maxCombinations;
-    private int nextCombination = 0;
 
     public FixtureSet(Collection<Match> matches)
     {
-        this(matches, IntStream.rangeClosed(3, matches.size()).reduce(2, (x, y) -> x * y));
-    }
-
-    public FixtureSet(Collection<Match> matches, int combination)
-    {
         this.matches = new ArrayList<>(matches);
         maxCombinations = IntStream.rangeClosed(3, matches.size()).reduce(2, (x, y) -> x * y);
-    }
-    
-    @Override
-    public boolean hasNext()
-    {
-        return nextCombination < maxCombinations;
-    }
-
-    @Override
-    public List<Match> next()
-    {
-        if (!hasNext())
-        {
-            throw new IllegalStateException("No next combination");
-        }
-        return currentCombination = getCombination(nextCombination++);
-    }
-
-    public List<Match> current()
-    {
-        if (currentCombination == null)
-        {
-            throw new IllegalStateException("No current combination");
-        }
-        return currentCombination;
+        suppliers = IntStream.range(0, maxCombinations).mapToObj(this::supplier).collect(
+                Collectors.toCollection(() -> new ArrayList<>()));
     }
 
     private List<Match> getCombination(int combination)
@@ -79,5 +52,47 @@ public class FixtureSet implements Iterator<List<Match>>
     public int size()
     {
         return matches.size();
+    }
+
+    private Supplier<Stream<Match>> supplier(int combination)
+    {
+        List<Match> list = new LinkedList<>();
+        return () ->
+        {
+            synchronized (list)
+            {
+                if (list.isEmpty())
+                {
+                    list.addAll(getCombination(combination));
+                }
+            }
+            return list.stream();
+        };
+    }
+    
+    public CombinationIterator iterator()
+    {
+        return new CombinationIterator();
+    }
+
+    public class CombinationIterator implements Iterator<Supplier<Stream<Match>>>
+    {
+        private int nextCombination = 0;
+
+        @Override
+        public boolean hasNext()
+        {
+            return nextCombination < maxCombinations;
+        }
+
+        @Override
+        public Supplier<Stream<Match>> next()
+        {
+            if (!hasNext())
+            {
+                throw new IllegalStateException();
+            }
+            return suppliers.get(nextCombination++);
+        }
     }
 }
