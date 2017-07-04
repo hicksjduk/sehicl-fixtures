@@ -14,7 +14,7 @@ public class FixturesEvaluator
     private static final Logger LOG = LoggerFactory.getLogger(FixturesEvaluator.class);
 
     private final FixtureSequencer sequencer = new FixtureSequencer();
-    private final ExecutorService executor = Executors.newFixedThreadPool(8);
+    private final ExecutorService executor = Executors.newWorkStealingPool();
     private int bestScore = Integer.MAX_VALUE;
     private FixtureList bestFixtureList = null;
 
