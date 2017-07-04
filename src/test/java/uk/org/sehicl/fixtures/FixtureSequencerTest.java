@@ -46,7 +46,7 @@ public class FixtureSequencerTest
     @Test
     public void testGetSequencedFixtures()
     {
-        List<FixtureSet> result = new FixtureSequencer().getSequencedFixtures(new FixtureList());
+        List<FixtureSet> result = new FixtureSequencer().getSequencedFixtures();
         Iterator<FixtureSet> iterator = result.iterator();
         IntStream.range(0, 13).forEach(i ->
         {

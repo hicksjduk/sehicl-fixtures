@@ -9,27 +9,24 @@ import java.util.stream.Collectors;
 
 import org.junit.Test;
 
-import uk.org.sehicl.fixtures.FixtureList.LeagueFixtureList;
-
 public class FixtureListTest
 {
-
     @Test
     public void test()
     {
-        new FixtureList().getLeagueLists().forEach(fl ->
+        LeagueFixtures.getLeagueLists().forEach(fl ->
         {
             test(fl);
             System.out.println(fl);
         });
     }
 
-    private void test(LeagueFixtureList fl)
+    private void test(LeagueFixtures fl)
     {
         fl.getTeams().forEach(t -> test(t, fl));
     }
 
-    private void test(Team t, LeagueFixtureList fl)
+    private void test(Team t, LeagueFixtures fl)
     {
         List<Match> fixtures = fl
                 .getFixtures()

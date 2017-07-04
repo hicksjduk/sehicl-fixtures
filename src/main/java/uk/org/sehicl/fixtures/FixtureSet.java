@@ -4,7 +4,6 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.function.Supplier;
@@ -17,6 +16,7 @@ public class FixtureSet
     private final List<Match> matches;
     private final List<Supplier<Stream<Match>>> suppliers;
     private final int maxCombinations;
+    private int currentCombination = 0;
 
     public FixtureSet(Collection<Match> matches)
     {
@@ -24,6 +24,26 @@ public class FixtureSet
         maxCombinations = IntStream.rangeClosed(3, matches.size()).reduce(2, (x, y) -> x * y);
         suppliers = IntStream.range(0, maxCombinations).mapToObj(this::supplier).collect(
                 Collectors.toCollection(() -> new ArrayList<>()));
+    }
+    
+    public String getCombinationString()
+    {
+        return String.format("%d/%d", currentCombination + 1, maxCombinations);
+    }
+
+    public boolean nextOrReset()
+    {
+        boolean answer = ++currentCombination < maxCombinations;
+        if (!answer)
+        {
+            currentCombination = 0;
+        }
+        return answer;
+    }
+
+    public Supplier<Stream<Match>> get()
+    {
+        return suppliers.get(currentCombination);
     }
 
     private List<Match> getCombination(int combination)
@@ -68,31 +88,5 @@ public class FixtureSet
             }
             return list.stream();
         };
-    }
-    
-    public CombinationIterator iterator()
-    {
-        return new CombinationIterator();
-    }
-
-    public class CombinationIterator implements Iterator<Supplier<Stream<Match>>>
-    {
-        private int nextCombination = 0;
-
-        @Override
-        public boolean hasNext()
-        {
-            return nextCombination < maxCombinations;
-        }
-
-        @Override
-        public Supplier<Stream<Match>> next()
-        {
-            if (!hasNext())
-            {
-                throw new IllegalStateException();
-            }
-            return suppliers.get(nextCombination++);
-        }
     }
 }

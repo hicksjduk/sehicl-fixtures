@@ -8,8 +8,6 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import uk.org.sehicl.fixtures.FixtureList.LeagueFixtureList;
-
 public class FixtureSequencer
 {
     private final List<SequenceItem> items = Arrays.asList(
@@ -99,11 +97,11 @@ public class FixtureSequencer
         return items;
     }
 
-    public List<FixtureSet> getSequencedFixtures(FixtureList fl)
+    public List<FixtureSet> getSequencedFixtures()
     {
         List<FixtureSet> answer = new LinkedList<>();
-        Map<String, Iterator<Match>> matchStreams = fl.getLeagueLists().stream().collect(
-                Collectors.toMap(LeagueFixtureList::getLeague, l -> l.getFixtures().iterator()));
+        Map<String, Iterator<Match>> matchStreams = LeagueFixtures.getLeagueLists().stream().collect(
+                Collectors.toMap(LeagueFixtures::getLeague, l -> l.getFixtures().iterator()));
         getItems().forEach(item -> answer.add(getMatches(item, matchStreams)));
         return answer;
     }
