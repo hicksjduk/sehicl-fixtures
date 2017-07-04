@@ -9,6 +9,7 @@ import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Collection;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -21,16 +22,50 @@ import java.util.function.ToIntFunction;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 public class FixtureList
 {
-    private final static DateFormat DATE_FORMATTER = new SimpleDateFormat("yyyyMMdd");
-    private final static DateFormat TIME_FORMATTER = new SimpleDateFormat("HHmm");
+    private static final Logger LOG = LoggerFactory.getLogger(FixtureList.class);
+    
+    @FunctionalInterface
+    private static interface DateFormatter
+    {
+        String format(Date d);
+    }
+
+    private static DateFormatter formatter(String formatString)
+    {
+        DateFormat formatter = new SimpleDateFormat(formatString);
+        Map<Date, String> cache = new HashMap<>();
+        return date ->
+        {
+            String answer;
+            synchronized (cache)
+            {
+                answer = cache.get(date);
+                if (answer == null)
+                {
+                    synchronized (formatter)
+                    {
+                        answer = formatter.format(date);
+                    }
+                    cache.put(date, answer);
+                }
+            }
+            return answer;
+        };
+    }
+
+    private final static DateFormatter DATE_FORMATTER = formatter("yyyyMMdd");
+    private final static DateFormatter TIME_FORMATTER = formatter("HHmm");
 
     private final List<ScheduledMatch> matches;
     private final Set<Team> teams;
     private final List<String> dates;
     private final Set<String> timeStrings;
-    private final List<String> validationErrors;
+    private final boolean valid;
 
     public FixtureList(List<Supplier<Stream<Match>>> sequence)
     {
@@ -57,10 +92,10 @@ public class FixtureList
                 .stream()
                 .map(m -> TIME_FORMATTER.format(m.dateTime))
                 .collect(Collectors.toSet());
-        validationErrors = validate();
+        valid = validate();
     }
 
-    private List<String> validate()
+    private boolean validate()
     {
         Set<String> teamDates = new HashSet<>();
         for (ScheduledMatch m : matches)
@@ -70,22 +105,17 @@ public class FixtureList
                 String td = String.format("%s %s", DATE_FORMATTER.format(m.dateTime), t);
                 if (!teamDates.add(td))
                 {
-                    return Arrays.asList(
-                            String.format("Team playing more than once on the same day - %s", td));
+                    LOG.error("Team playing more than once on the same day - {}", td);
+                    return false;
                 }
             }
         }
-        return null;
+        return true;
     }
 
     public boolean isValid()
     {
-        return validationErrors == null;
-    }
-
-    public List<String> getValidationErrors()
-    {
-        return validationErrors;
+        return valid;
     }
 
     private Stream<ScheduledMatch> getMatches(MatchDate md, Iterator<Match> matchSequence)
@@ -151,14 +181,7 @@ public class FixtureList
             countsByCourt.get(m.court).incrementAndGet();
             if (lastMatch.get() != null)
             {
-                final int gap = getGap(lastMatch.get().dateTime, m.dateTime);
-                if (gap == 0)
-                {
-                    throw new RuntimeException(
-                            String.format("Same team is playing more than once on %s",
-                                    DATE_FORMATTER.format(m.dateTime)));
-                }
-                interMatchGaps.add(gap);
+                interMatchGaps.add(getGap(lastMatch.get().dateTime, m.dateTime));
             }
             lastMatch.set(m);
         });

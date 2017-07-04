@@ -3,9 +3,13 @@ package uk.org.sehicl.fixtures;
 import java.util.stream.Collectors;
 
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class FixtureListTest
 {
+    private static final Logger LOG = LoggerFactory.getLogger(FixtureListTest.class);
+
     @Test
     public void test()
     {
@@ -16,12 +20,11 @@ public class FixtureListTest
                 .collect(Collectors.toList()));
         if (fl.isValid())
         {
-            System.out.println(fl.evaluate());
+            LOG.debug("Valid fixture list with an evaluation score of {}:\n{}", fl.evaluate(), fl);
         }
         else
         {
-            fl.getValidationErrors().forEach(System.out::println);
+            LOG.debug("Invalid fixture list:\n{}", fl);
         }
-        System.out.println(fl);
     }
 }

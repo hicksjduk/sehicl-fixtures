@@ -1,0 +1,37 @@
+<configuration>
+
+	<property name="appName" value="sehicl" />
+	<property name="pattern"
+		value="%date{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n" />
+	<property name="logDir" value="./logs" />
+
+	<appender name="FILE"
+		class="ch.qos.logback.core.rolling.RollingFileAppender">
+		<encoder>
+			<pattern>${pattern}</pattern>
+		</encoder>
+		<file>${logDir}/${appName}.log</file>
+		<rollingPolicy
+			class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+			<maxFileSize>100MB</maxFileSize>
+			<!-- daily rollover -->
+			<fileNamePattern>${logDir}/${appName}.log.%d{yyyy-MM-dd}.%i.log.gz
+			</fileNamePattern>
+			<!-- keep 30 days' worth of history capped at 3GB total size -->
+			<maxHistory>30</maxHistory>
+			<totalSizeCap>20GB</totalSizeCap>
+		</rollingPolicy>
+	</appender>
+
+s	<appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+		<encoder>
+			<pattern>${pattern}</pattern>
+		</encoder>
+	</appender>
+
+	<logger name="uk.org.sehicl" level="DEBUG">
+		<appender-ref ref="FILE" />
+		<appender-ref ref="STDOUT" />
+	</logger>
+
+</configuration>
