@@ -5,7 +5,6 @@ import java.io.StringWriter;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Deque;
 import java.util.List;
 import java.util.Map;
@@ -46,7 +45,6 @@ public class LeagueFixtures
     {
         IntStream.rangeClosed(1, teamCount).forEach(
                 i -> teams.add(new Team(String.format("%s/%d", league, i))));
-        Collections.shuffle(teams);
     }
 
     private void generateFixtures(int fixtureCount)
