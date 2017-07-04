@@ -26,7 +26,7 @@ public class FixtureList
     private final static DateFormat DATE_FORMATTER = new SimpleDateFormat("yyyyMMdd");
     private final static DateFormat TIME_FORMATTER = new SimpleDateFormat("HHmm");
 
-    private final List<SequencedMatch> matches;
+    private final List<ScheduledMatch> matches;
     private final Set<Team> teams;
     private final List<String> dates;
     private final Set<String> timeStrings;
@@ -63,7 +63,7 @@ public class FixtureList
     private List<String> validate()
     {
         Set<String> teamDates = new HashSet<>();
-        for (SequencedMatch m : matches)
+        for (ScheduledMatch m : matches)
         {
             for (Team t : Arrays.asList(m.match.getHomeTeam(), m.match.getAwayTeam()))
             {
@@ -88,16 +88,16 @@ public class FixtureList
         return validationErrors;
     }
 
-    private Stream<SequencedMatch> getMatches(MatchDate md, Iterator<Match> matchSequence)
+    private Stream<ScheduledMatch> getMatches(MatchDate md, Iterator<Match> matchSequence)
     {
         Calendar cal = Calendar.getInstance();
         cal.setTime(md.getDate());
         cal.set(Calendar.HOUR_OF_DAY, md.getFirstHour());
         cal.set(Calendar.MINUTE, md.getMins());
-        SequencedMatch[] matches = new SequencedMatch[md.getMatchCount()];
+        ScheduledMatch[] matches = new ScheduledMatch[md.getMatchCount()];
         for (int i = 0; i < matches.length; i++)
         {
-            matches[i] = new SequencedMatch(matchSequence.next(), cal.getTime(),
+            matches[i] = new ScheduledMatch(matchSequence.next(), cal.getTime(),
                     i % 2 == 0 ? Court.A : Court.B);
             if (i % 2 != 0)
             {
@@ -107,13 +107,13 @@ public class FixtureList
         return Stream.of(matches);
     }
 
-    public static class SequencedMatch
+    public static class ScheduledMatch
     {
         private final Match match;
         private final Date dateTime;
         private final Court court;
 
-        public SequencedMatch(Match match, Date dateTime, Court court)
+        public ScheduledMatch(Match match, Date dateTime, Court court)
         {
             this.match = match;
             this.dateTime = dateTime;
@@ -135,7 +135,7 @@ public class FixtureList
                 .collect(Collectors.summingInt(this::evaluateTeamFixtures));
     }
 
-    private int evaluateTeamFixtures(Stream<SequencedMatch> matches)
+    private int evaluateTeamFixtures(Stream<ScheduledMatch> matches)
     {
         Map<String, AtomicInteger> countsByTime = timeStrings
                 .stream()
@@ -144,7 +144,7 @@ public class FixtureList
                 .of(Court.values())
                 .collect(Collectors.toMap(c -> c, c -> new AtomicInteger()));
         List<Integer> interMatchGaps = new ArrayList<>();
-        AtomicReference<SequencedMatch> lastMatch = new AtomicReference<>();
+        AtomicReference<ScheduledMatch> lastMatch = new AtomicReference<>();
         matches.forEach(m ->
         {
             countsByTime.get(TIME_FORMATTER.format(m.dateTime)).incrementAndGet();
