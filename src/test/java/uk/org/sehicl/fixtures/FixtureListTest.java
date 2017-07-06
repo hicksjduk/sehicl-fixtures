@@ -16,7 +16,7 @@ public class FixtureListTest
         final FixtureList fl = new FixtureList(new FixtureSequencer()
                 .getSequencedFixtures()
                 .stream()
-                .map(FixtureSet::get)
+                .map(FixtureSet::next)
                 .collect(Collectors.toList()));
         if (fl.isValid())
         {

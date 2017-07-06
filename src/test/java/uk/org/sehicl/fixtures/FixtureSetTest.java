@@ -24,12 +24,11 @@ public class FixtureSetTest
                                 new Team("" + team.incrementAndGet())))
                         .collect(Collectors.toList()));
         Set<String> permutations = new HashSet<>();
-        do
+        while (fs.hasNext())
         {
-            final String pString = fs.get().get().collect(Collectors.toList()).toString();
+            final String pString = fs.next().get().collect(Collectors.toList()).toString();
             assertThat(permutations.add(pString)).as(pString).isTrue();
         }
-        while (fs.nextOrReset());
     }
 
 }

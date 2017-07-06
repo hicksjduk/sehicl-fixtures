@@ -14,6 +14,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
@@ -28,7 +29,7 @@ import org.slf4j.LoggerFactory;
 public class FixtureList
 {
     private static final Logger LOG = LoggerFactory.getLogger(FixtureList.class);
-    
+
     @FunctionalInterface
     private static interface DateFormatter
     {
@@ -62,12 +63,10 @@ public class FixtureList
     private final static DateFormatter TIME_FORMATTER = formatter("HHmm");
 
     private final List<ScheduledMatch> matches;
-    private final Set<Team> teams;
-    private final List<String> dates;
-    private final Set<String> timeStrings;
-    private final boolean valid;
+    private Boolean valid = null;
+    private final AtomicInteger score = new AtomicInteger();
 
-    public FixtureList(List<Supplier<Stream<Match>>> sequence)
+    public FixtureList(Collection<Supplier<Stream<Match>>> sequence)
     {
         final Iterator<Match> matchSequence = sequence
                 .stream()
@@ -79,20 +78,6 @@ public class FixtureList
                 .stream()
                 .flatMap((md) -> getMatches(md, matchSequence))
                 .collect(Collectors.toList());
-        teams = matches
-                .stream()
-                .flatMap(m -> Stream.of(m.match.getHomeTeam(), m.match.getAwayTeam()))
-                .collect(Collectors.toSet());
-        dates = MatchDate
-                .getInstances()
-                .stream()
-                .map(m -> DATE_FORMATTER.format(m.getDate()))
-                .collect(Collectors.toCollection(ArrayList::new));
-        timeStrings = matches
-                .stream()
-                .map(m -> TIME_FORMATTER.format(m.dateTime))
-                .collect(Collectors.toSet());
-        valid = validate();
     }
 
     private boolean validate()
@@ -115,7 +100,19 @@ public class FixtureList
 
     public boolean isValid()
     {
-        return valid;
+        boolean answer;
+        synchronized (this)
+        {
+            if (valid == null)
+            {
+                valid = answer = this.validate();
+            }
+            else
+            {
+                answer = valid;
+            }
+        }
+        return answer;
     }
 
     private Stream<ScheduledMatch> getMatches(MatchDate md, Iterator<Match> matchSequence)
@@ -125,7 +122,7 @@ public class FixtureList
         cal.set(Calendar.HOUR_OF_DAY, md.getFirstHour());
         cal.set(Calendar.MINUTE, md.getMins());
         ScheduledMatch[] matches = new ScheduledMatch[md.getMatchCount()];
-        for (int i = 0; i < matches.length; i++)
+        for (int i = 0; matchSequence.hasNext() && i < matches.length; i++)
         {
             matches[i] = new ScheduledMatch(matchSequence.next(), cal.getTime(),
                     i % 2 == 0 ? Court.A : Court.B);
@@ -134,7 +131,7 @@ public class FixtureList
                 cal.add(Calendar.HOUR_OF_DAY, 1);
             }
         }
-        return Stream.of(matches);
+        return Stream.of(matches).filter(Objects::nonNull);
     }
 
     public static class ScheduledMatch
@@ -158,14 +155,36 @@ public class FixtureList
 
     public int evaluate()
     {
-        return teams
+        final Set<Team> teams = matches
+                .stream()
+                .flatMap(m -> Stream.of(m.match.getHomeTeam(), m.match.getAwayTeam()))
+                .collect(Collectors.toSet());
+        final List<String> dateStrings = MatchDate
+                .getInstances()
+                .stream()
+                .map(m -> DATE_FORMATTER.format(m.getDate()))
+                .collect(Collectors.toCollection(ArrayList::new));
+        final Set<String> timeStrings = matches
+                .stream()
+                .map(m -> TIME_FORMATTER.format(m.dateTime))
+                .collect(Collectors.toSet());
+        final Integer answer = teams
                 .stream()
                 .map(t -> matches.stream().filter(
                         m -> m.match.getHomeTeam() == t || m.match.getAwayTeam() == t))
-                .collect(Collectors.summingInt(this::evaluateTeamFixtures));
+                .collect(Collectors.summingInt(
+                        (mstr) -> evaluateTeamFixtures(mstr, dateStrings, timeStrings)));
+        score.set(answer);
+        return answer;
     }
 
-    private int evaluateTeamFixtures(Stream<ScheduledMatch> matches)
+    public int getScore()
+    {
+        return score.get();
+    }
+
+    private int evaluateTeamFixtures(Stream<ScheduledMatch> matches, List<String> dateStrings,
+            Set<String> timeStrings)
     {
         Map<String, AtomicInteger> countsByTime = timeStrings
                 .stream()
@@ -181,7 +200,7 @@ public class FixtureList
             countsByCourt.get(m.court).incrementAndGet();
             if (lastMatch.get() != null)
             {
-                interMatchGaps.add(getGap(lastMatch.get().dateTime, m.dateTime));
+                interMatchGaps.add(getGap(dateStrings, lastMatch.get().dateTime, m.dateTime));
             }
             lastMatch.set(m);
         });
@@ -192,7 +211,7 @@ public class FixtureList
                 + getSpread(interMatchGaps, Integer::intValue);
     }
 
-    private final int getGap(Date d1, Date d2)
+    private int getGap(List<String> dates, Date d1, Date d2)
     {
         return dates.indexOf(DATE_FORMATTER.format(d2)) - dates.indexOf(DATE_FORMATTER.format(d1));
     }

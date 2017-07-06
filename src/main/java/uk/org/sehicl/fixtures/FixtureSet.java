@@ -4,46 +4,53 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
-public class FixtureSet
+public class FixtureSet implements Iterator<Supplier<Stream<Match>>>
 {
     private final List<Match> matches;
     private final List<Supplier<Stream<Match>>> suppliers;
-    private final int maxCombinations;
-    private int currentCombination = 0;
+    private AtomicInteger nextCombination = new AtomicInteger(0);
+
+    public int getNextCombination()
+    {
+        return nextCombination.get();
+    }
+
+    public void setNextCombination(int newValue)
+    {
+        nextCombination.set(newValue);
+    }
 
     public FixtureSet(Collection<Match> matches)
     {
         this.matches = new ArrayList<>(matches);
-        maxCombinations = IntStream.rangeClosed(3, matches.size()).reduce(2, (x, y) -> x * y);
+        int maxCombinations = IntStream.rangeClosed(3, matches.size()).reduce(2, (x, y) -> x * y);
         suppliers = IntStream.range(0, maxCombinations).mapToObj(this::supplier).collect(
                 Collectors.toCollection(() -> new ArrayList<>()));
     }
     
-    public String getCombinationString()
+    @Override
+    public boolean hasNext()
     {
-        return String.format("%d/%d", currentCombination + 1, maxCombinations);
+        return nextCombination.get() < suppliers.size();
     }
 
-    public boolean nextOrReset()
+    @Override
+    public Supplier<Stream<Match>> next()
     {
-        boolean answer = ++currentCombination < maxCombinations;
-        if (!answer)
+        if (!hasNext())
         {
-            currentCombination = 0;
+            throw new IllegalStateException();
         }
-        return answer;
-    }
-
-    public Supplier<Stream<Match>> get()
-    {
-        return suppliers.get(currentCombination);
+        return suppliers.get(nextCombination.getAndIncrement());
     }
 
     private List<Match> getCombination(int combination)
@@ -88,5 +95,15 @@ public class FixtureSet
             }
             return list.stream();
         };
+    }
+    
+    public void reset()
+    {
+        nextCombination.set(0);
+    }
+    
+    public String getCombinationString()
+    {
+        return String.format("%d/%d", nextCombination.get(), suppliers.size());
     }
 }
