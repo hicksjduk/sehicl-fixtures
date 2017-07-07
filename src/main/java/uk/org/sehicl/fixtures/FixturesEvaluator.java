@@ -5,6 +5,7 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.io.Writer;
 import java.util.Collection;
+import java.util.Date;
 import java.util.Deque;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -32,6 +33,7 @@ public class FixturesEvaluator
 {
     private static final Logger LOG = LoggerFactory.getLogger(FixturesEvaluator.class);
     private static final File checkpointDir = new File("checkpoints");
+    private static final File bestDir = new File("best");
 
     private final FixtureSequencer sequencer = new FixtureSequencer();
     private final BlockingQueue<Runnable> executorQueue = new ArrayBlockingQueue<>(500);
@@ -43,6 +45,7 @@ public class FixturesEvaluator
     public static void main(String[] args)
     {
         checkpointDir.mkdirs();
+        bestDir.mkdirs();
         final FixturesEvaluator evaluator = new FixturesEvaluator();
         Runtime.getRuntime().addShutdownHook(new Thread(() ->
         {
@@ -133,6 +136,11 @@ public class FixturesEvaluator
                 {
                     LOG.info("Best score so far: {} - {}", score, fixtureList);
                     bestScore = score;
+                    try (FileWriter fw = new FileWriter(
+                            new File(bestDir, String.format("%1$tY%1$tm%1$td%1$tk%1$tM%1$tS%1$tN", new Date()))))
+                    {
+                        fw.write(fixtureList.toString());
+                    }
                 }
             }
             boolean isFirst;
@@ -185,11 +193,11 @@ public class FixturesEvaluator
         {
             best = bestScore;
         }
-        String counts = IntStream.of(checkpoint.combCounts).mapToObj(i -> String.format("%02x", i)).collect(
-                Collectors.joining());
-        String filename = String.format("%s.%d",
-                counts,
-                best);
+        String counts = IntStream
+                .of(checkpoint.combCounts)
+                .mapToObj(i -> String.format("%02x", i))
+                .collect(Collectors.joining());
+        String filename = String.format("%s.%d", counts, best);
         try (Writer writer = new FileWriter(new File(checkpointDir, filename)))
         {
             writer.write("");
