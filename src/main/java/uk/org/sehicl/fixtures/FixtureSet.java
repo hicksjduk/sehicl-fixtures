@@ -52,7 +52,7 @@ public class FixtureSet implements Iterator<Supplier<Stream<Match>>>
         }
         return suppliers.get(nextCombination.getAndIncrement());
     }
-
+    
     private List<Match> getCombination(int combination)
     {
         List<Match> workingSet = new ArrayList<>(matches);

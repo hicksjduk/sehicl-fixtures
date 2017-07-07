@@ -1,11 +1,14 @@
 package uk.org.sehicl.fixtures;
 
+import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.Reader;
 import java.io.Writer;
+import java.util.Collection;
+import java.util.Date;
 import java.util.Deque;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -33,7 +36,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 public class FixturesEvaluator
 {
     private static final Logger LOG = LoggerFactory.getLogger(FixturesEvaluator.class);
-    private static final String checkpointFile = "checkpoint.txt";
+    private static final File checkpointDir = new File("checkpoints");
 
     private final FixtureSequencer sequencer = new FixtureSequencer();
     private final BlockingQueue<Runnable> executorQueue = new ArrayBlockingQueue<>(500);
@@ -44,6 +47,7 @@ public class FixturesEvaluator
 
     public static void main(String[] args)
     {
+        checkpointDir.mkdirs();
         final FixturesEvaluator evaluator = new FixturesEvaluator();
         Runtime.getRuntime().addShutdownHook(new Thread(() ->
         {
@@ -57,8 +61,8 @@ public class FixturesEvaluator
     private void evaluate()
     {
         List<FixtureSet> sequencedFixtures = sequencer.getSequencedFixtures();
-        resetFromCheckpoint(sequencedFixtures);
-        Deque<Supplier<Stream<Match>>> suppliers = new LinkedList<>();
+        Deque<Supplier<Stream<Match>>> suppliers = new LinkedList<>(
+                resetFromCheckpoint(sequencedFixtures));
         while (true)
         {
             final FixtureSet fixtureSet = sequencedFixtures.get(suppliers.size());
@@ -97,24 +101,28 @@ public class FixturesEvaluator
 
     private void submitForEvaluation(FixtureList fixtureList, Checkpoint checkpoint)
     {
-        Runnable evaluator = () -> evaluate(fixtureList, checkpoint);
         synchronized (pendingTransactions)
         {
             pendingTransactions.add(checkpoint);
         }
+        submitJob(() -> evaluate(fixtureList, checkpoint));
+    }
+
+    private void submitJob(Runnable job)
+    {
         try
         {
-            executor.execute(evaluator);
+            executor.execute(job);
         }
         catch (RejectedExecutionException ex)
         {
             try
             {
-                executorQueue.put(evaluator);
+                executorQueue.put(job);
             }
             catch (InterruptedException e)
             {
-                LOG.error("Unable to submit evaluator", ex);
+                LOG.error("Unable to submit job", ex);
             }
         }
     }
@@ -149,27 +157,39 @@ public class FixturesEvaluator
         }
     }
 
-    private void resetFromCheckpoint(List<FixtureSet> fixtureSets)
+    private Collection<Supplier<Stream<Match>>> resetFromCheckpoint(List<FixtureSet> fixtureSets)
     {
-        try (Reader reader = new FileReader(checkpointFile))
+        Collection<Supplier<Stream<Match>>> answer = new LinkedList<>();
+        String fileName = Stream
+                .of(checkpointDir.list())
+                .sorted((a, b) -> b.compareTo(a))
+                .findFirst()
+                .orElse(null);
+        if (fileName != null)
         {
-            final Checkpoint checkpoint = new ObjectMapper().readValue(reader, Checkpoint.class);
-            checkpoint.applyTo(fixtureSets);
-            LOG.debug("Reset to checkpoint {}", checkpoint);
+            try (Reader reader = new FileReader(new File(checkpointDir, fileName)))
+            {
+                final Checkpoint checkpoint = new ObjectMapper().readValue(reader,
+                        Checkpoint.class);
+                answer = checkpoint.applyTo(fixtureSets);
+                LOG.debug("Reset to checkpoint {}", checkpoint);
+            }
+            catch (FileNotFoundException ex)
+            {
+                LOG.debug("No checkpoint file found, starting from the beginning");
+            }
+            catch (IOException ex)
+            {
+                LOG.error("Unexpected error reading checkpoint file", ex);
+            }
         }
-        catch (FileNotFoundException ex)
-        {
-            LOG.debug("No checkpoint file found, starting from the beginning");
-        }
-        catch (IOException ex)
-        {
-            LOG.error("Unexpected error reading checkpoint file", ex);
-        }
+        return answer;
     }
 
     private synchronized void writeCheckpoint(Checkpoint checkpoint)
     {
-        try (Writer writer = new FileWriter(checkpointFile))
+        String timestamp = "" + new Date().getTime();
+        try (Writer writer = new FileWriter(new File(checkpointDir, timestamp)))
         {
             new ObjectMapper().writeValue(writer, checkpoint);
         }
@@ -177,6 +197,14 @@ public class FixturesEvaluator
         {
             LOG.error("Unexpected error writing checkpoint file", ex);
         }
+        submitJob(() -> tidyCheckpoints(timestamp));
+    }
+
+    private void tidyCheckpoints(String timestamp)
+    {
+        Stream
+                .of(checkpointDir.listFiles((f) -> f.getName().compareTo(timestamp) < 0))
+                .forEach(File::delete);
     }
 
     private static class Checkpoint implements Comparable<Checkpoint>
@@ -186,7 +214,7 @@ public class FixturesEvaluator
         {
             return new Checkpoint(Stream.of(str.split(",")).mapToInt(Integer::valueOf).toArray());
         }
-        
+
         private final int[] combCounts;
 
         public Checkpoint(List<FixtureSet> fixtureSets)
@@ -216,11 +244,12 @@ public class FixturesEvaluator
             return IntStream
                     .of(combCounts)
                     .mapToObj(String::valueOf)
-                    .collect(Collectors.joining(","));
+                    .collect(Collectors.joining("."));
         }
 
-        public void applyTo(List<FixtureSet> fixtureSets)
+        public Collection<Supplier<Stream<Match>>> applyTo(List<FixtureSet> fixtureSets)
         {
+            Collection<Supplier<Stream<Match>>> answer = new LinkedList<>();
             if (fixtureSets.size() != combCounts.length)
             {
                 throw new RuntimeException(
@@ -229,8 +258,16 @@ public class FixturesEvaluator
             Iterator<FixtureSet> it = fixtureSets.iterator();
             for (int i = 0; it.hasNext(); i++)
             {
-                it.next().setNextCombination(combCounts[i]);
+                FixtureSet fs = it.next();
+                fs.setNextCombination(combCounts[i] - 1);
+                Supplier<Stream<Match>> supplier = fs.next();
+                if (it.hasNext())
+                {
+                    answer.add(supplier);
+                }
+
             }
+            return answer;
         }
     }
 }
