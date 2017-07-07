@@ -4,4 +4,4 @@
 
 /target/
 logs/
-checkpoint.txt
+checkpoints/

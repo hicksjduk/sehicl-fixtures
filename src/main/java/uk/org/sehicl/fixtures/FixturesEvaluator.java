@@ -167,44 +167,36 @@ public class FixturesEvaluator
                 .orElse(null);
         if (fileName != null)
         {
-            try (Reader reader = new FileReader(new File(checkpointDir, fileName)))
-            {
-                final Checkpoint checkpoint = new ObjectMapper().readValue(reader,
-                        Checkpoint.class);
-                answer = checkpoint.applyTo(fixtureSets);
-                LOG.debug("Reset to checkpoint {}", checkpoint);
-            }
-            catch (FileNotFoundException ex)
-            {
-                LOG.debug("No checkpoint file found, starting from the beginning");
-            }
-            catch (IOException ex)
-            {
-                LOG.error("Unexpected error reading checkpoint file", ex);
-            }
+            final Checkpoint checkpoint = new Checkpoint(
+                    Stream.of(fileName.split("\\.")).mapToInt(Integer::valueOf).toArray());
+            answer = checkpoint.applyTo(fixtureSets);
+            LOG.debug("Reset to checkpoint {}", checkpoint);
+        }
+        else
+        {
+            LOG.debug("No checkpoint file found, starting from the beginning");
         }
         return answer;
     }
 
     private synchronized void writeCheckpoint(Checkpoint checkpoint)
     {
-        String timestamp = "" + new Date().getTime();
-        try (Writer writer = new FileWriter(new File(checkpointDir, timestamp)))
+        String filename = checkpoint.toString();
+        try (Writer writer = new FileWriter(new File(checkpointDir, filename)))
         {
-            new ObjectMapper().writeValue(writer, checkpoint);
+            writer.write("");
         }
         catch (IOException ex)
         {
             LOG.error("Unexpected error writing checkpoint file", ex);
         }
-        submitJob(() -> tidyCheckpoints(timestamp));
+        submitJob(() -> tidyCheckpoints(filename));
     }
 
     private void tidyCheckpoints(String timestamp)
     {
-        Stream
-                .of(checkpointDir.listFiles((f) -> f.getName().compareTo(timestamp) < 0))
-                .forEach(File::delete);
+        Stream.of(checkpointDir.listFiles((f) -> f.getName().compareTo(timestamp) < 0)).forEach(
+                File::delete);
     }
 
     private static class Checkpoint implements Comparable<Checkpoint>
@@ -243,7 +235,7 @@ public class FixturesEvaluator
         {
             return IntStream
                     .of(combCounts)
-                    .mapToObj(String::valueOf)
+                    .mapToObj(i -> String.format("%03d", i))
                     .collect(Collectors.joining("."));
         }
 
