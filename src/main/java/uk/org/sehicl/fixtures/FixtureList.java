@@ -26,6 +26,8 @@ import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 public class FixtureList
 {
     private static final Logger LOG = LoggerFactory.getLogger(FixtureList.class);
@@ -79,7 +81,7 @@ public class FixtureList
                 .flatMap((md) -> getMatches(md, matchSequence))
                 .collect(Collectors.toList());
     }
-
+    
     private boolean validate()
     {
         Set<String> teamDates = new HashSet<>();
@@ -113,6 +115,18 @@ public class FixtureList
             }
         }
         return answer;
+    }
+    
+    @JsonProperty
+    private Boolean getValid()
+    {
+        return valid;
+    }
+    
+    @JsonProperty
+    private void setValid(Boolean valid)
+    {
+        this.valid = valid;
     }
 
     private Stream<ScheduledMatch> getMatches(MatchDate md, Iterator<Match> matchSequence)
@@ -183,6 +197,12 @@ public class FixtureList
         return score.get();
     }
 
+    @JsonProperty
+    private void setScore(int score)
+    {
+        this.score.set(score);
+    }
+    
     private int evaluateTeamFixtures(Stream<ScheduledMatch> matches, List<String> dateStrings,
             Set<String> timeStrings)
     {

@@ -1,14 +1,10 @@
 package uk.org.sehicl.fixtures;
 
 import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.io.Reader;
 import java.io.Writer;
 import java.util.Collection;
-import java.util.Date;
 import java.util.Deque;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -31,7 +27,6 @@ import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class FixturesEvaluator
 {
@@ -42,7 +37,7 @@ public class FixturesEvaluator
     private final BlockingQueue<Runnable> executorQueue = new ArrayBlockingQueue<>(500);
     private final ExecutorService executor = new ThreadPoolExecutor(8, 20, 10, TimeUnit.SECONDS,
             executorQueue);
-    private FixtureList bestFixtureList = null;
+    private int bestScore = Integer.MAX_VALUE;
     private final SortedSet<Checkpoint> pendingTransactions = new TreeSet<>();
 
     public static void main(String[] args)
@@ -134,10 +129,10 @@ public class FixturesEvaluator
             final int score = fixtureList.evaluate();
             synchronized (this)
             {
-                if (bestFixtureList == null || score < bestFixtureList.getScore())
+                if (score < bestScore)
                 {
                     LOG.info("Best score so far: {} - {}", score, fixtureList);
-                    bestFixtureList = fixtureList;
+                    bestScore = score;
                 }
             }
             boolean isFirst;
@@ -167,8 +162,12 @@ public class FixturesEvaluator
                 .orElse(null);
         if (fileName != null)
         {
-            final Checkpoint checkpoint = new Checkpoint(
-                    Stream.of(fileName.split("\\.")).mapToInt(Integer::valueOf).toArray());
+            String[] split = fileName.split("\\.");
+            this.bestScore = Integer.valueOf(split[1]);
+            final Checkpoint checkpoint = new Checkpoint(IntStream
+                    .range(0, split[0].length() / 2)
+                    .map(i -> Integer.valueOf(split[0].substring(i * 2, i * 2 + 2), 16))
+                    .toArray());
             answer = checkpoint.applyTo(fixtureSets);
             LOG.debug("Reset to checkpoint {}", checkpoint);
         }
@@ -181,7 +180,16 @@ public class FixturesEvaluator
 
     private synchronized void writeCheckpoint(Checkpoint checkpoint)
     {
-        String filename = checkpoint.toString();
+        int best;
+        synchronized (this)
+        {
+            best = bestScore;
+        }
+        String counts = IntStream.of(checkpoint.combCounts).mapToObj(i -> String.format("%02x", i)).collect(
+                Collectors.joining());
+        String filename = String.format("%s.%d",
+                counts,
+                best);
         try (Writer writer = new FileWriter(new File(checkpointDir, filename)))
         {
             writer.write("");
@@ -190,12 +198,12 @@ public class FixturesEvaluator
         {
             LOG.error("Unexpected error writing checkpoint file", ex);
         }
-        submitJob(() -> tidyCheckpoints(filename));
+        submitJob(() -> tidyCheckpoints(counts));
     }
 
-    private void tidyCheckpoints(String timestamp)
+    private void tidyCheckpoints(String cpName)
     {
-        Stream.of(checkpointDir.listFiles((f) -> f.getName().compareTo(timestamp) < 0)).forEach(
+        Stream.of(checkpointDir.listFiles((f) -> f.getName().compareTo(cpName) < 0)).forEach(
                 File::delete);
     }
 
@@ -233,10 +241,8 @@ public class FixturesEvaluator
         @JsonValue
         public String toString()
         {
-            return IntStream
-                    .of(combCounts)
-                    .mapToObj(i -> String.format("%03d", i))
-                    .collect(Collectors.joining("."));
+            return IntStream.of(combCounts).mapToObj(i -> String.format("%03d", i)).collect(
+                    Collectors.joining("."));
         }
 
         public Collection<Supplier<Stream<Match>>> applyTo(List<FixtureSet> fixtureSets)
