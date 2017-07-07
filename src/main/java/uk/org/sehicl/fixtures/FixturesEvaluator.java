@@ -136,8 +136,8 @@ public class FixturesEvaluator
                 {
                     LOG.info("Best score so far: {} - {}", score, fixtureList);
                     bestScore = score;
-                    try (FileWriter fw = new FileWriter(
-                            new File(bestDir, String.format("%1$tY%1$tm%1$td%1$tk%1$tM%1$tS%1$tN", new Date()))))
+                    try (FileWriter fw = new FileWriter(new File(bestDir, String
+                            .format("%1$tY%1$tm%1$td%1$tk%1$tM%1$tS%1$tN.%2$d", new Date(), score))))
                     {
                         fw.write(fixtureList.toString());
                     }
