@@ -18,6 +18,7 @@ public class FixtureSet implements Iterator<Supplier<Stream<Match>>>
     private final List<Match> matches;
     private final List<Supplier<Stream<Match>>> suppliers;
     private AtomicInteger nextCombination = new AtomicInteger(0);
+    private Integer fixedCombination = null;
 
     public int getNextCombination()
     {
@@ -29,18 +30,31 @@ public class FixtureSet implements Iterator<Supplier<Stream<Match>>>
         nextCombination.set(newValue);
     }
 
-    public FixtureSet(Collection<Match> matches)
+    public FixtureSet(Collection<Match> matches, boolean variationSignificant)
     {
         this.matches = new ArrayList<>(matches);
-        int maxCombinations = IntStream.rangeClosed(3, matches.size()).reduce(2, (x, y) -> x * y);
+        int maxCombinations = variationSignificant
+                ? IntStream.rangeClosed(3, matches.size()).reduce(2, (x, y) -> x * y) : 1;
         suppliers = IntStream.range(0, maxCombinations).mapToObj(this::supplier).collect(
                 Collectors.toCollection(() -> new ArrayList<>()));
     }
-    
+
+    public Integer getFixedCombination()
+    {
+        return fixedCombination;
+    }
+
+    public void setFixedCombination(int fixedCombination)
+    {
+        this.fixedCombination = fixedCombination;
+        nextCombination.set(fixedCombination);
+    }
+
     @Override
     public boolean hasNext()
     {
-        return nextCombination.get() < suppliers.size();
+        return fixedCombination == null ? nextCombination.get() < suppliers.size()
+                : fixedCombination == nextCombination.get();
     }
 
     @Override
@@ -52,7 +66,7 @@ public class FixtureSet implements Iterator<Supplier<Stream<Match>>>
         }
         return suppliers.get(nextCombination.getAndIncrement());
     }
-    
+
     private List<Match> getCombination(int combination)
     {
         List<Match> workingSet = new ArrayList<>(matches);
@@ -96,12 +110,12 @@ public class FixtureSet implements Iterator<Supplier<Stream<Match>>>
             return list.stream();
         };
     }
-    
+
     public void reset()
     {
         nextCombination.set(0);
     }
-    
+
     public String getCombinationString()
     {
         return String.format("%d/%d", nextCombination.get(), suppliers.size());

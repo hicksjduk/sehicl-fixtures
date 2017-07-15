@@ -10,14 +10,6 @@ import java.util.Deque;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.SortedSet;
-import java.util.TreeSet;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.RejectedExecutionException;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
@@ -32,33 +24,53 @@ import com.fasterxml.jackson.annotation.JsonValue;
 public class FixturesEvaluator
 {
     private static final Logger LOG = LoggerFactory.getLogger(FixturesEvaluator.class);
-    private static final File checkpointDir = new File("checkpoints");
-    private static final File bestDir = new File("best");
+    private static File checkpointDir = new File("checkpoints");
+    private static File bestDir = new File("best");
 
     private final FixtureSequencer sequencer = new FixtureSequencer();
-    private final BlockingQueue<Runnable> executorQueue = new ArrayBlockingQueue<>(500);
-    private final ExecutorService executor = new ThreadPoolExecutor(8, 20, 10, TimeUnit.SECONDS,
-            executorQueue);
+//    private final BlockingQueue<Runnable> executorQueue = new ArrayBlockingQueue<>(500);
+//    private final ExecutorService executor = new ThreadPoolExecutor(8, 20, 10, TimeUnit.SECONDS,
+//            executorQueue);
     private int bestScore = Integer.MAX_VALUE;
-    private final SortedSet<Checkpoint> pendingTransactions = new TreeSet<>();
+//    private final SortedSet<Checkpoint> pendingTransactions = new TreeSet<>();
+    private final Integer partition;
 
     public static void main(String[] args)
     {
+        FixturesEvaluator evaluator;
+        if (args.length > 0 && args[0].matches("\\d+"))
+        {
+            final String partition = args[0];
+            checkpointDir = new File(checkpointDir, partition);
+            bestDir = new File(bestDir, partition);
+            evaluator = new FixturesEvaluator(Integer.parseInt(partition));
+        }
+        else
+        {
+            evaluator = new FixturesEvaluator();
+        }
         checkpointDir.mkdirs();
         bestDir.mkdirs();
-        final FixturesEvaluator evaluator = new FixturesEvaluator();
-        Runtime.getRuntime().addShutdownHook(new Thread(() ->
-        {
-            synchronized (evaluator)
-            {
-            }
-        }));
         evaluator.evaluate();
+    }
+    
+    public FixturesEvaluator()
+    {
+        this(null);
+    }
+    
+    public FixturesEvaluator(Integer partition)
+    {
+        this.partition = partition;
     }
 
     private void evaluate()
     {
         List<FixtureSet> sequencedFixtures = sequencer.getSequencedFixtures();
+        if (partition != null)
+        {
+            sequencedFixtures.get(0).setFixedCombination(partition);
+        }
         Deque<Supplier<Stream<Match>>> suppliers = new LinkedList<>(
                 resetFromCheckpoint(sequencedFixtures));
         while (true)
@@ -75,12 +87,12 @@ public class FixturesEvaluator
             }
             else
             {
+                suppliers.addLast(fixtureSet.next());
                 String combStr = sequencedFixtures
                         .stream()
                         .limit(suppliers.size())
                         .map(FixtureSet::getCombinationString)
                         .collect(Collectors.joining(","));
-                suppliers.addLast(fixtureSet.next());
                 final FixtureList fixtureList = new FixtureList(suppliers);
                 if (!fixtureList.isValid())
                 {
@@ -89,47 +101,48 @@ public class FixturesEvaluator
                 }
                 else if (suppliers.size() == sequencedFixtures.size())
                 {
-                    LOG.debug("Submitting for evaluation: {}", combStr);
-                    submitForEvaluation(fixtureList, new Checkpoint(sequencedFixtures));
+                    submitForEvaluation(fixtureList, new Checkpoint(sequencedFixtures), combStr);
                     suppliers.removeLast();
                 }
             }
         }
     }
 
-    private void submitForEvaluation(FixtureList fixtureList, Checkpoint checkpoint)
+    private void submitForEvaluation(FixtureList fixtureList, Checkpoint checkpoint, String combStr)
     {
-        synchronized (pendingTransactions)
-        {
-            pendingTransactions.add(checkpoint);
-        }
-        submitJob(() -> evaluate(fixtureList, checkpoint));
+//        synchronized (pendingTransactions)
+//        {
+//            pendingTransactions.add(checkpoint);
+//        }
+//        submitJob(() -> evaluate(fixtureList, checkpoint));
+        evaluate(fixtureList, checkpoint, combStr);
     }
 
-    private void submitJob(Runnable job)
-    {
-        try
-        {
-            executor.execute(job);
-        }
-        catch (RejectedExecutionException ex)
-        {
-            try
-            {
-                executorQueue.put(job);
-            }
-            catch (InterruptedException e)
-            {
-                LOG.error("Unable to submit job", ex);
-            }
-        }
-    }
+//    private void submitJob(Runnable job)
+//    {
+//        try
+//        {
+//            executor.execute(job);
+//        }
+//        catch (RejectedExecutionException ex)
+//        {
+//            try
+//            {
+//                executorQueue.put(job);
+//            }
+//            catch (InterruptedException e)
+//            {
+//                LOG.error("Unable to submit job", ex);
+//            }
+//        }
+//    }
 
-    private void evaluate(FixtureList fixtureList, Checkpoint checkpoint)
+    private void evaluate(FixtureList fixtureList, Checkpoint checkpoint, String combStr)
     {
         try
         {
             final int score = fixtureList.evaluate();
+            LOG.debug("Evaluated, score {}: {}", score, combStr);
             synchronized (this)
             {
                 if (score < bestScore)
@@ -143,16 +156,17 @@ public class FixturesEvaluator
                     }
                 }
             }
-            boolean isFirst;
-            synchronized (pendingTransactions)
-            {
-                isFirst = checkpoint == pendingTransactions.first();
-                pendingTransactions.remove(checkpoint);
-            }
-            if (isFirst)
-            {
-                writeCheckpoint(checkpoint);
-            }
+            writeCheckpoint(checkpoint);
+//            boolean isFirst;
+//            synchronized (pendingTransactions)
+//            {
+//                isFirst = checkpoint == pendingTransactions.first();
+//                pendingTransactions.remove(checkpoint);
+//            }
+//            if (isFirst)
+//            {
+//                writeCheckpoint(checkpoint);
+//            }
         }
         catch (Throwable t)
         {
@@ -188,6 +202,7 @@ public class FixturesEvaluator
 
     private synchronized void writeCheckpoint(Checkpoint checkpoint)
     {
+        tidyCheckpoints("");
         int best;
         synchronized (this)
         {
@@ -206,7 +221,7 @@ public class FixturesEvaluator
         {
             LOG.error("Unexpected error writing checkpoint file", ex);
         }
-        submitJob(() -> tidyCheckpoints(counts));
+//        submitJob(() -> tidyCheckpoints(counts));
     }
 
     private void tidyCheckpoints(String cpName)

@@ -116,6 +116,6 @@ public class FixtureSequencer
                 answer.add(matchIterators.get(l).next());
             });
         });
-        return new FixtureSet(answer);
+        return new FixtureSet(answer, item.getLeagues().size() > 1);
     }
 }

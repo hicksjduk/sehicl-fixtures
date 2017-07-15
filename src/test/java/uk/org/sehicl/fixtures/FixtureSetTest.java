@@ -22,7 +22,7 @@ public class FixtureSetTest
                         .range(0, matchCount)
                         .mapToObj(i -> new Match(new Team("" + team.incrementAndGet()),
                                 new Team("" + team.incrementAndGet())))
-                        .collect(Collectors.toList()));
+                        .collect(Collectors.toList()), true);
         Set<String> permutations = new HashSet<>();
         while (fs.hasNext())
         {
