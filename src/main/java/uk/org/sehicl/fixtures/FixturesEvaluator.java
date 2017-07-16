@@ -202,7 +202,6 @@ public class FixturesEvaluator
 
     private synchronized void writeCheckpoint(Checkpoint checkpoint)
     {
-        tidyCheckpoints("");
         int best;
         synchronized (this)
         {
@@ -221,6 +220,7 @@ public class FixturesEvaluator
         {
             LOG.error("Unexpected error writing checkpoint file", ex);
         }
+        tidyCheckpoints(filename);
 //        submitJob(() -> tidyCheckpoints(counts));
     }
 
