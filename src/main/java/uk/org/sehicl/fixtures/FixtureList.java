@@ -5,19 +5,23 @@ import java.io.StringWriter;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Collection;
 import java.util.Date;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.SortedSet;
+import java.util.TreeSet;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.function.ToIntFunction;
 import java.util.stream.Collectors;
@@ -81,48 +85,87 @@ public class FixtureList
                 .flatMap((md) -> getMatches(md, matchSequence))
                 .collect(Collectors.toList());
     }
-    
+
     private boolean validate()
     {
-        Set<String> teamDates = new HashSet<>();
-        for (ScheduledMatch m : matches)
+        final BiConsumer<Map<Object, SortedSet<ScheduledMatch>>, ScheduledMatch> accumulator = (map,
+                match) ->
         {
-            for (Team t : Arrays.asList(m.match.getHomeTeam(), m.match.getAwayTeam()))
+            Stream.of(match.match.getHomeTeam(), match.match.getAwayTeam()).forEach(team ->
             {
-                String td = String.format("%s %s", DATE_FORMATTER.format(m.dateTime), t);
-                if (!teamDates.add(td))
                 {
-                    LOG.error("Team playing more than once on the same day - {}", td);
-                    return false;
+                    SortedSet<ScheduledMatch> matchesForTeam = map.get(team);
+                    if (matchesForTeam == null)
+                        map.put(team, matchesForTeam = new TreeSet<ScheduledMatch>());
+                    matchesForTeam.add(match);
                 }
-            }
-        }
+                ;
+            });
+        };
+        final Map<Object, SortedSet<ScheduledMatch>> schedulesByTeam = matches
+                .stream()
+                .collect(HashMap::new, accumulator, Map::putAll);
+        schedulesByTeam
+                .entrySet()
+                .stream()
+                .forEach(e -> validateSchedule(e.getKey(), e.getValue()));
         return true;
+    }
+
+    private void validateSchedule(Object team, SortedSet<ScheduledMatch> schedule)
+    {
+        Function<Date, Function<Date, Date>> validatorProducer = second -> first ->
+        {
+            validateGap(team, first, second);
+            return second;
+        };
+        BiFunction<Function<Date, Date>, Date, Function<Date, Date>> functionChainer = (prevFunc,
+                date) ->
+        {
+            final Function<Date, Date> nextFunc = validatorProducer.apply(date);
+            return prevFunc == null ? nextFunc : prevFunc.andThen(nextFunc);
+        };
+        schedule
+                .stream()
+                .map(ScheduledMatch::getDateTime)
+                .reduce(null, functionChainer, Function::andThen)
+                .apply(null);
+    }
+
+    private void validateGap(Object team, Date first, Date second)
+    {
+        if (first != null)
+            if (second.getTime() - first.getTime() < TimeUnit.DAYS.toMillis(8))
+                throw new RuntimeException(String.format(
+                        "Team %s playing less than 2 weeks apart: %tc, %tc", team, first, second));
     }
 
     public boolean isValid()
     {
-        boolean answer;
+        boolean answer = false;
         synchronized (this)
         {
             if (valid == null)
-            {
-                valid = answer = this.validate();
-            }
+                try
+                {
+                    valid = answer = this.validate();
+                }
+                catch (RuntimeException ex)
+                {
+                    LOG.error("Validation error", ex);
+                }
             else
-            {
                 answer = valid;
-            }
         }
         return answer;
     }
-    
+
     @JsonProperty
     private Boolean getValid()
     {
         return valid;
     }
-    
+
     @JsonProperty
     private void setValid(Boolean valid)
     {
@@ -133,22 +176,19 @@ public class FixtureList
     {
         Calendar cal = Calendar.getInstance();
         cal.setTime(md.getDate());
-        cal.set(Calendar.HOUR_OF_DAY, md.getFirstHour());
         cal.set(Calendar.MINUTE, md.getMins());
-        ScheduledMatch[] matches = new ScheduledMatch[md.getMatchCount()];
+        final List<Integer> startHours = md.getHours();
+        ScheduledMatch[] matches = new ScheduledMatch[startHours.size()];
         for (int i = 0; matchSequence.hasNext() && i < matches.length; i++)
         {
+            cal.set(Calendar.HOUR_OF_DAY, startHours.get(i));
             matches[i] = new ScheduledMatch(matchSequence.next(), cal.getTime(),
                     i % 2 == 0 ? Court.A : Court.B);
-            if (i % 2 != 0)
-            {
-                cal.add(Calendar.HOUR_OF_DAY, 1);
-            }
         }
         return Stream.of(matches).filter(Objects::nonNull);
     }
 
-    public static class ScheduledMatch
+    public static class ScheduledMatch implements Comparable<ScheduledMatch>
     {
         private final Match match;
         private final Date dateTime;
@@ -161,9 +201,20 @@ public class FixtureList
             this.court = court;
         }
 
+        @Override
+        public int compareTo(ScheduledMatch o)
+        {
+            return dateTime.compareTo(o.dateTime);
+        }
+
         public String toString()
         {
             return String.format("%tc %s %s", dateTime, court, match);
+        }
+
+        public Date getDateTime()
+        {
+            return dateTime;
         }
     }
 
@@ -202,7 +253,7 @@ public class FixtureList
     {
         this.score.set(score);
     }
-    
+
     private int evaluateTeamFixtures(Stream<ScheduledMatch> matches, List<String> dateStrings,
             Set<String> timeStrings)
     {

@@ -1,5 +1,6 @@
 package uk.org.sehicl.fixtures;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Date;
@@ -10,42 +11,37 @@ import org.apache.commons.lang3.time.DateUtils;
 public class MatchDate
 {
     private static List<MatchDate> INSTANCES = Arrays.asList(
-            new MatchDate.Builder(2017, Calendar.SEPTEMBER, 17).setFirstHour(20).build(),
-            new MatchDate.Builder(2017, Calendar.SEPTEMBER, 24).setFirstHour(20).build(),
-            new MatchDate.Builder(2017, Calendar.OCTOBER, 1).setFirstHour(17).build(),
-            new MatchDate.Builder(2017, Calendar.OCTOBER, 15)
+            new MatchDate.Builder(2018, Calendar.SEPTEMBER, 30).setLastHour(20).build(),
+            new MatchDate.Builder(2018, Calendar.OCTOBER, 14).build(),
+            new MatchDate.Builder(2018, Calendar.OCTOBER, 21).build(),
+            new MatchDate.Builder(2018, Calendar.OCTOBER, 28).build(),
+            new MatchDate.Builder(2018, Calendar.NOVEMBER, 6).build(),
+            new MatchDate.Builder(2018, Calendar.NOVEMBER, 13).build(),
+            new MatchDate.Builder(2018, Calendar.NOVEMBER, 20).build(),
+            new MatchDate.Builder(2018, Calendar.NOVEMBER, 27).build(),
+            new MatchDate.Builder(2018, Calendar.DECEMBER, 2)
+                    .setFirstHour(17)
+                    .setOddHour(17)
+                    .build(),
+            new MatchDate.Builder(2018, Calendar.DECEMBER, 9)
                     .setFirstHour(17)
                     .build(),
-            new MatchDate.Builder(2017, Calendar.OCTOBER, 22)
+            new MatchDate.Builder(2018, Calendar.DECEMBER, 16)
                     .setFirstHour(17)
                     .build(),
-            new MatchDate.Builder(2017, Calendar.OCTOBER, 29)
-                    .setFirstHour(17)
-                    .build(),
-            new MatchDate.Builder(2017, Calendar.NOVEMBER, 5).setFirstHour(17).build(),
-            new MatchDate.Builder(2017, Calendar.NOVEMBER, 12)
-                    .setFirstHour(17)
-                    .build(),
-            new MatchDate.Builder(2017, Calendar.NOVEMBER, 19).build(),
-            new MatchDate.Builder(2017, Calendar.NOVEMBER, 26).build(),
-            new MatchDate.Builder(2017, Calendar.DECEMBER, 3).build(),
-            new MatchDate.Builder(2017, Calendar.DECEMBER, 10).build(),
-            new MatchDate.Builder(2017, Calendar.DECEMBER, 17)
-                    .setFirstHour(17)
-                    .setLastHour(20)
-                    .setOdd(true)
-                    .build(),
-            new MatchDate.Builder(2018, Calendar.JANUARY, 7).build(),
-            new MatchDate.Builder(2018, Calendar.JANUARY, 14).build(),
-            new MatchDate.Builder(2018, Calendar.JANUARY, 21).build(),
-            new MatchDate.Builder(2018, Calendar.JANUARY, 28).build(),
-            new MatchDate.Builder(2018, Calendar.FEBRUARY, 4).build(),
-            new MatchDate.Builder(2018, Calendar.FEBRUARY, 11).build(),
-            new MatchDate.Builder(2018, Calendar.FEBRUARY, 18).build(),
-            new MatchDate.Builder(2018, Calendar.FEBRUARY, 25).build(),
-            new MatchDate.Builder(2018, Calendar.MARCH, 4).build(),
-            new MatchDate.Builder(2018, Calendar.MARCH, 11).build(),
-            new MatchDate.Builder(2018, Calendar.MARCH, 18).build());
+            new MatchDate.Builder(2019, Calendar.JANUARY, 6).build(),
+            new MatchDate.Builder(2019, Calendar.JANUARY, 13).build(),
+            new MatchDate.Builder(2019, Calendar.JANUARY, 20).build(),
+            new MatchDate.Builder(2019, Calendar.JANUARY, 27).build(),
+            new MatchDate.Builder(2019, Calendar.FEBRUARY, 3).build(),
+            new MatchDate.Builder(2019, Calendar.FEBRUARY, 10).build(),
+            new MatchDate.Builder(2019, Calendar.FEBRUARY, 17).build(),
+            new MatchDate.Builder(2019, Calendar.FEBRUARY, 24).build(),
+            new MatchDate.Builder(2019, Calendar.MARCH, 3).build(),
+            new MatchDate.Builder(2019, Calendar.MARCH, 10).build(),
+            new MatchDate.Builder(2019, Calendar.MARCH, 17).build(),
+            new MatchDate.Builder(2019, Calendar.MARCH, 24).build(),
+            new MatchDate.Builder(2019, Calendar.MARCH, 31).build());
 
     public static List<MatchDate> getInstances()
     {
@@ -53,23 +49,19 @@ public class MatchDate
     }
 
     private final Date date;
-    private final int firstHour;
+    private final List<Integer> hours = new ArrayList<>();
     private final int mins;
-    private final int matchCount;
 
     private MatchDate(Builder builder)
     {
         this.date = builder.date;
-        this.firstHour = builder.firstHour;
         this.mins = builder.mins;
-        this.matchCount = (builder.lastHour - firstHour + 1) * 2 - (builder.odd ? 1 : 0);
-    }
-
-    @Override
-    public String toString()
-    {
-        return "MatchDate [date=" + date + ", firstHour=" + firstHour + ", matchCount=" + matchCount
-                + "]";
+        for (int h = builder.firstHour; h <= builder.lastHour; h++)
+        {
+            hours.add(h);
+            if (builder.oddHour == null || builder.oddHour != h)
+                hours.add(h);
+        }
     }
 
     public Date getDate()
@@ -77,19 +69,14 @@ public class MatchDate
         return date;
     }
 
-    public int getFirstHour()
+    public List<Integer> getHours()
     {
-        return firstHour;
+        return hours;
     }
 
     public int getMins()
     {
         return mins;
-    }
-
-    public int getMatchCount()
-    {
-        return matchCount;
     }
 
     public static class Builder
@@ -98,7 +85,7 @@ public class MatchDate
         private int firstHour = 18;
         private int lastHour = 21;
         private int mins = 15;
-        private boolean odd = false;
+        private Integer oddHour = null;
 
         public Builder(int year, int month, int day)
         {
@@ -130,9 +117,9 @@ public class MatchDate
             return this;
         }
 
-        public Builder setOdd(boolean odd)
+        public Builder setOddHour(int oddHour)
         {
-            this.odd = odd;
+            this.oddHour = oddHour;
             return this;
         }
     }

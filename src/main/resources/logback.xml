@@ -29,10 +29,8 @@ s	<appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
 		</encoder>
 	</appender>
 
-<!-- 
 	<logger name="uk.org.sehicl" level="DEBUG">
 		<appender-ref ref="FILE" />
 		<appender-ref ref="STDOUT" />
 	</logger>
- -->
 </configuration>
