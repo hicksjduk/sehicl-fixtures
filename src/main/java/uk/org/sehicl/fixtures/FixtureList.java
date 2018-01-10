@@ -114,30 +114,15 @@ public class FixtureList
 
     private void validateSchedule(Object team, SortedSet<ScheduledMatch> schedule)
     {
-        Function<Date, Function<Date, Date>> validatorProducer = second -> first ->
-        {
-            validateGap(team, first, second);
-            return second;
-        };
-        BiFunction<Function<Date, Date>, Date, Function<Date, Date>> functionChainer = (prevFunc,
-                date) ->
-        {
-            final Function<Date, Date> nextFunc = validatorProducer.apply(date);
-            return prevFunc == null ? nextFunc : prevFunc.andThen(nextFunc);
-        };
-        schedule
-                .stream()
-                .map(ScheduledMatch::getDateTime)
-                .reduce(null, functionChainer, Function::andThen)
-                .apply(null);
+        forEachAdjacentPair(schedule.stream().map(ScheduledMatch::getDateTime),
+                (first, second) -> validateGap(team, first, second));
     }
 
     private void validateGap(Object team, Date first, Date second)
     {
-        if (first != null)
-            if (second.getTime() - first.getTime() < TimeUnit.DAYS.toMillis(8))
-                throw new RuntimeException(String.format(
-                        "Team %s playing less than 2 weeks apart: %tc, %tc", team, first, second));
+        if (second.getTime() - first.getTime() < TimeUnit.DAYS.toMillis(8))
+            throw new RuntimeException(String.format(
+                    "Team %s playing less than 2 weeks apart: %tc, %tc", team, first, second));
     }
 
     public boolean isValid()
@@ -304,5 +289,21 @@ public class FixtureList
         PrintWriter pw = new PrintWriter(sw);
         matches.forEach(pw::println);
         return sw.toString();
+    }
+
+    public static <T> void forEachAdjacentPair(Stream<T> stream, BiConsumer<T, T> processor)
+    {
+        Function<T, Function<T, T>> initFuncSupplier = value -> ignoredValue -> value;
+        Function<T, Function<T, T>> processorFuncSupplier = second -> first ->
+        {
+            processor.accept(first, second);
+            return second;
+        };
+        BiFunction<Function<T, T>, T, Function<T, T>> aggregator = (prevFunc,
+                value) -> prevFunc == null ? initFuncSupplier.apply(value)
+                        : prevFunc.andThen(processorFuncSupplier.apply(value));
+        Function<T, T> processorChain = stream.reduce(null, aggregator, Function::andThen);
+        if (processorChain != null)
+            processorChain.apply(null);
     }
 }

@@ -28,11 +28,11 @@ public class FixturesEvaluator
     private static File bestDir = new File("best");
 
     private final FixtureSequencer sequencer = new FixtureSequencer();
-//    private final BlockingQueue<Runnable> executorQueue = new ArrayBlockingQueue<>(500);
-//    private final ExecutorService executor = new ThreadPoolExecutor(8, 20, 10, TimeUnit.SECONDS,
-//            executorQueue);
+    // private final BlockingQueue<Runnable> executorQueue = new ArrayBlockingQueue<>(500);
+    // private final ExecutorService executor = new ThreadPoolExecutor(8, 20, 10, TimeUnit.SECONDS,
+    // executorQueue);
     private int bestScore = Integer.MAX_VALUE;
-//    private final SortedSet<Checkpoint> pendingTransactions = new TreeSet<>();
+    // private final SortedSet<Checkpoint> pendingTransactions = new TreeSet<>();
     private final Integer partition;
 
     public static void main(String[] args)
@@ -53,12 +53,12 @@ public class FixturesEvaluator
         bestDir.mkdirs();
         evaluator.evaluate();
     }
-    
+
     public FixturesEvaluator()
     {
         this(null);
     }
-    
+
     public FixturesEvaluator(Integer partition)
     {
         this.partition = partition;
@@ -110,32 +110,32 @@ public class FixturesEvaluator
 
     private void submitForEvaluation(FixtureList fixtureList, Checkpoint checkpoint, String combStr)
     {
-//        synchronized (pendingTransactions)
-//        {
-//            pendingTransactions.add(checkpoint);
-//        }
-//        submitJob(() -> evaluate(fixtureList, checkpoint));
+        // synchronized (pendingTransactions)
+        // {
+        // pendingTransactions.add(checkpoint);
+        // }
+        // submitJob(() -> evaluate(fixtureList, checkpoint));
         evaluate(fixtureList, checkpoint, combStr);
     }
 
-//    private void submitJob(Runnable job)
-//    {
-//        try
-//        {
-//            executor.execute(job);
-//        }
-//        catch (RejectedExecutionException ex)
-//        {
-//            try
-//            {
-//                executorQueue.put(job);
-//            }
-//            catch (InterruptedException e)
-//            {
-//                LOG.error("Unable to submit job", ex);
-//            }
-//        }
-//    }
+    // private void submitJob(Runnable job)
+    // {
+    // try
+    // {
+    // executor.execute(job);
+    // }
+    // catch (RejectedExecutionException ex)
+    // {
+    // try
+    // {
+    // executorQueue.put(job);
+    // }
+    // catch (InterruptedException e)
+    // {
+    // LOG.error("Unable to submit job", ex);
+    // }
+    // }
+    // }
 
     private void evaluate(FixtureList fixtureList, Checkpoint checkpoint, String combStr)
     {
@@ -149,24 +149,24 @@ public class FixturesEvaluator
                 {
                     LOG.info("Best score so far: {} - {}", score, fixtureList);
                     bestScore = score;
-                    try (FileWriter fw = new FileWriter(new File(bestDir, String
-                            .format("%1$tY%1$tm%1$td%1$tk%1$tM%1$tS%1$tN.%2$d", new Date(), score))))
+                    try (FileWriter fw = new FileWriter(new File(bestDir, String.format(
+                            "%1$tY%1$tm%1$td%1$tk%1$tM%1$tS%1$tN.%2$d", new Date(), score))))
                     {
                         fw.write(fixtureList.toString());
                     }
                 }
             }
             writeCheckpoint(checkpoint);
-//            boolean isFirst;
-//            synchronized (pendingTransactions)
-//            {
-//                isFirst = checkpoint == pendingTransactions.first();
-//                pendingTransactions.remove(checkpoint);
-//            }
-//            if (isFirst)
-//            {
-//                writeCheckpoint(checkpoint);
-//            }
+            // boolean isFirst;
+            // synchronized (pendingTransactions)
+            // {
+            // isFirst = checkpoint == pendingTransactions.first();
+            // pendingTransactions.remove(checkpoint);
+            // }
+            // if (isFirst)
+            // {
+            // writeCheckpoint(checkpoint);
+            // }
         }
         catch (Throwable t)
         {
@@ -221,7 +221,7 @@ public class FixturesEvaluator
             LOG.error("Unexpected error writing checkpoint file", ex);
         }
         tidyCheckpoints(filename);
-//        submitJob(() -> tidyCheckpoints(counts));
+        // submitJob(() -> tidyCheckpoints(counts));
     }
 
     private void tidyCheckpoints(String cpName)
