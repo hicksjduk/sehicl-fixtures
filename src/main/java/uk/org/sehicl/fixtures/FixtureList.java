@@ -299,10 +299,10 @@ public class FixtureList
             processor.accept(first, second);
             return second;
         };
-        BiFunction<Function<T, T>, T, Function<T, T>> aggregator = (prevFunc,
+        BiFunction<Function<T, T>, T, Function<T, T>> accumulator = (prevFunc,
                 value) -> prevFunc == null ? initFuncSupplier.apply(value)
                         : prevFunc.andThen(processorFuncSupplier.apply(value));
-        Function<T, T> processorChain = stream.reduce(null, aggregator, Function::andThen);
+        Function<T, T> processorChain = stream.reduce(null, accumulator, Function::andThen);
         if (processorChain != null)
             processorChain.apply(null);
     }
